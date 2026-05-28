@@ -1,0 +1,9 @@
+# 後端 API 所需的 Python 套件清單
+fastapi
+uvicorn
+python-jose[cryptography]
+python-multipart
+firebase-admin
+python-dotenv
+passlib[argon2]
+argon2-cffi

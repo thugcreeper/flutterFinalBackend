@@ -150,6 +150,7 @@ activemq-data/
 # Environments
 .env
 .envrc
+# 忽略本機環境、暫存檔與開發產物
 .venv
 env/
 venv/
@@ -216,3 +217,4 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+key.json
