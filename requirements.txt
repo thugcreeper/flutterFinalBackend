@@ -1,9 +1,20 @@
 # 後端 API 所需的 Python 套件清單
+
+# 核心 Web 框架
 fastapi
 uvicorn
+pydantic
+
+# 安全與認證
 python-jose[cryptography]
 python-multipart
-firebase-admin
-python-dotenv
 passlib[argon2]
 argon2-cffi
+
+# Firebase / Firestore 整合
+firebase-admin
+
+# 工具與外部 API 串接
+python-dotenv
+requests
+xmltodict

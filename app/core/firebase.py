@@ -1,5 +1,4 @@
 # 初始化 Firebase 與提供 Firestore 連線。
-# 初始化 Firebase 與提供 Firestore 連線。
 import firebase_admin
 from firebase_admin import credentials, firestore
 
