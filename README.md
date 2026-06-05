@@ -87,7 +87,7 @@ JWT_ALGORITHM=HS256
 JWT_EXPIRE_MINUTES=1440
 
 # Firebase 相關設定
-FIREBASE_CREDENTIALS_PATH=key.json 的絕對路徑或相對路徑
+FIREBASE_CREDENTIALS_JSON=key.json內容
 FIRESTORE_USERS_COLLECTION=users
 
 # 全家便利商店 API 密鑰 (執行全家門市同步腳本時需要)
