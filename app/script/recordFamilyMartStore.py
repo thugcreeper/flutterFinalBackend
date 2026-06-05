@@ -4,7 +4,11 @@ from app.core.firebase import get_firestore_client
 from dotenv import load_dotenv
 
 load_dotenv()
-
+cities = [
+        "台北市","基隆市","新北市","桃園市",   "新竹市","新竹縣","苗栗縣","台中市",
+        "彰化縣","南投縣","雲林縣","嘉義市","嘉義縣","台南市","高雄市","屏東縣",
+        "宜蘭縣","花蓮縣","台東縣","澎湖縣","連江縣","金門縣"
+    ]
 FAMILYMART_URL="https://api.map.com.tw/net/familyShop.aspx"
 FAMILYMART_API_KEY = os.getenv("FAMILYMART_API_KEY")
 
@@ -83,7 +87,10 @@ def fetch_city_familymart(city: str):
         stores = get_store_list_familymart(city, area)
 
         print(f"  → {len(stores)} 間門市")
-
+        # 將行政區與縣市資訊填入每一間門市資料中，方便後續建立分層的collection
+        for store in stores:
+            store["_temp_city"] = town["city"]
+            store["_temp_area"] = town["town"]
         all_stores.extend(stores)
 
         time.sleep(0.3)
@@ -119,6 +126,8 @@ def refactor_familymart_store_data(data_list):
             "name": item["NAME"].strip() + "門市",
             "address": normalize_text(item["addr"].strip()),
             "telephone": item.get("TEL", "").strip(),
+            "city": item.get("_temp_city", "").strip(),
+            "area": item.get("_temp_area", "").strip(),
             "latitude": float(item["py"]),
             "longitude": float(item["px"]) ,
         })
@@ -137,7 +146,8 @@ def upload_stores_to_firestore(stores):
     total = 0
     count=0
     for store in stores:
-        doc_ref = collection.document(store["id"])
+        #結構化儲存，方便管理與維護
+        doc_ref = db.collection("familyMartStore").document(store["city"]).collection(store["area"]).document(store["id"])
         #用batch保有atomicity、提升效率的好處
         batch.set(doc_ref, store)
         total += 1
@@ -150,8 +160,19 @@ def upload_stores_to_firestore(stores):
     if count>0:
         batch.commit()
     print(f"已上傳 {total} 間門市")
-    
-if __name__ == "__main__":
 
-    familymart_stores=fetch_city_familymart("基隆市")
-    upload_stores_to_firestore(familymart_stores)
+def fetch_all_familymartstores():
+    all_store=[]
+    counter=0
+    for city in cities:
+        all_store=fetch_city_familymart(city)
+        upload_stores_to_firestore(all_store)
+        counter+=len(all_store)
+        
+    print("所有城市的familyMart門市資料已完成上傳,共", counter, "筆")
+    
+    return all_store 
+if __name__ == "__main__":
+    fetch_all_familymartstores()
+    #familymart_stores=fetch_city_familymart("新竹市")
+    #upload_stores_to_firestore(familymart_stores)
