@@ -147,6 +147,72 @@ class AuthService:
             "user": self._sanitize_user(user),
         }
 
+    # 驗證 Facebook 登入傳過來的 Firebase idToken 並建立或登入使用者
+    def login_facebook(self, id_token: str) -> dict:
+        try:
+            claims = auth.verify_id_token(id_token)
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid Facebook Firebase token",
+            ) from exc
+
+        fb_sub = claims.get("uid") or claims.get("sub")
+        if not fb_sub:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Facebook token missing subject",
+            )
+
+        # 1. 透過你寫好的 get_by_facebook_sub 精準查詢是否有舊用戶
+        user = self.user_repo.get_by_facebook_sub(fb_sub)
+
+        if not user:
+            # 2. 【關鍵修正】不要用 uuid.uuid4().hex！
+            # 直接強制將資料庫的 Document ID 設為 Firebase 的唯一 UID (fb_sub)
+            user_id = fb_sub
+
+            email_val = claims.get("email")
+            account = email_val if email_val else f"facebook:{fb_sub}"
+
+            # 處理可能結構複雜的 picture 欄位，防止 Pydantic 驗證噴 422
+            raw_picture = claims.get("picture", "")
+            img_url = ""
+            if isinstance(raw_picture, str):
+                img_url = raw_picture
+            elif isinstance(raw_picture, dict):
+                img_url = raw_picture.get("data", {}).get("url", "")
+
+            payload = {
+                "account": account,
+                "provider": "facebook",
+                "passwordHash": "",
+                "facebookSub": fb_sub,
+                "name": claims.get("name", "FB使用者"),
+                "email": email_val if email_val else "",  # 補上空字串補底，防止 422
+                "description": "",
+                "imageUrl": img_url,
+                "createdAt": firestore.SERVER_TIMESTAMP,
+            }
+            # 3. 建立 Document ID 與 Firebase UID 完全一致的使用者
+            self.user_repo.create(user_id, payload)
+            user = self.user_repo.get_by_id(user_id)
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Facebook login failed",
+            )
+
+        token, expires_in = create_access_token(
+            user_id=user["id"], provider=user["provider"]
+        )
+        return {
+            "accessToken": token,
+            "expiresIn": expires_in,
+            "user": self._sanitize_user(user),
+        }
+
     # 依使用者 id 取得目前登入者資料
     def get_me(self, user_id: str) -> dict:
         user = self.user_repo.get_by_id(user_id)

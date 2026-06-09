@@ -43,6 +43,20 @@ class UserRepository:
         data["id"] = doc.id
         return data
 
+    def get_by_facebook_sub(self, facebook_sub: str) -> dict[str, Any] | None:
+        query = (
+            self.collection.where("provider", "==", "facebook")
+            .where("facebookSub", "==", facebook_sub)
+            .limit(1)
+        )
+        docs = list(query.stream())
+        if not docs:
+            return None
+        doc = docs[0]
+        data = doc.to_dict()
+        data["id"] = doc.id
+        return data
+
     def create(self, user_id: str, payload: dict[str, Any]) -> None:
         self.collection.document(user_id).set(payload)
 

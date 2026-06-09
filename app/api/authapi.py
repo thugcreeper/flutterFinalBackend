@@ -1,5 +1,4 @@
 # 提供註冊、登入與取得目前使用者身分的 API。
-# 提供註冊、登入與取得目前使用者身分的 API。
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -9,6 +8,7 @@ from app.schemas.auth import (
     GoogleLoginRequest,
     LoginRequest,
     RegisterRequest,
+    FacebookLoginRequest,
 )
 from app.services.auth_service import AuthService
 
@@ -73,6 +73,16 @@ def login(payload: LoginRequest):
 @router.post("/googlelogin", response_model=AuthResponse)
 def google_login(payload: GoogleLoginRequest):
     result = auth_service.login_google(payload.idToken)
+    return {
+        "accessToken": result["accessToken"],
+        "expiresIn": result["expiresIn"],
+        "user": result["user"],
+    }
+
+
+@router.post("/facebooklogin", response_model=AuthResponse)
+def facebook_login(payload: FacebookLoginRequest):
+    result = auth_service.login_facebook(payload.idToken)
     return {
         "accessToken": result["accessToken"],
         "expiresIn": result["expiresIn"],

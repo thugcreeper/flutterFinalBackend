@@ -17,6 +17,10 @@ class GoogleLoginRequest(BaseModel):
     idToken: str = Field(min_length=10)
 
 
+class FacebookLoginRequest(BaseModel):
+    idToken: str = Field(min_length=10)
+
+
 class UserResponse(BaseModel):
     id: str
     account: str
