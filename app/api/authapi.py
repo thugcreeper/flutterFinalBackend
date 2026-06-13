@@ -70,6 +70,7 @@ def login(payload: LoginRequest):
     }
 
 
+"""
 @router.post("/googlelogin", response_model=AuthResponse)
 def google_login(payload: GoogleLoginRequest):
     result = auth_service.login_google(payload.idToken)
@@ -78,8 +79,8 @@ def google_login(payload: GoogleLoginRequest):
         "expiresIn": result["expiresIn"],
         "user": result["user"],
     }
-
-
+"""
+"""
 @router.post("/facebooklogin", response_model=AuthResponse)
 def facebook_login(payload: FacebookLoginRequest):
     result = auth_service.login_facebook(payload.idToken)
@@ -88,3 +89,4 @@ def facebook_login(payload: FacebookLoginRequest):
         "expiresIn": result["expiresIn"],
         "user": result["user"],
     }
+"""

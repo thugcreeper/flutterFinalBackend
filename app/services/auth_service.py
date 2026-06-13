@@ -114,16 +114,30 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Google token missing subject",
             )
-
+        # 統一 provider 的識別名稱
+        # 因為 Firebase 傳過來的 provider 有可能是 "google" 或 "google.com"
+        raw_provider = claims.get("firebase", {}).get("sign_in_provider", "google")
+        provider = "google" if "google" in raw_provider else raw_provider
+        # 如果 email 欄位是空的，就直接用 google:sub 當作帳號
+        if email_val.strip():
+            account = email_val.strip()
+        else:
+            account = f"google:{google_sub}"
         user = self.user_repo.get_by_google_sub(google_sub)
         if not user:
-            user_id = uuid.uuid4().hex
-            account = claims.get("email") or f"google:{google_sub}"
+            # google_sub是 Google 使用者的唯一識別碼
+            user_id = google_sub
+            # 確保有拿到 email，拿不到才用備用字串
+            email_val = claims.get("email")
+            account = email_val if email_val else f"google:{google_sub}"
             payload = {
                 "account": account,
                 "provider": "google",
                 "passwordHash": "",
                 "googleSub": google_sub,
+                "email": (
+                    email_val if email_val else "No email!"
+                ),  # 補上空字串補底，防止 422
                 "name": claims.get("name", ""),
                 "description": "",
                 "imageUrl": claims.get("picture", ""),
@@ -278,4 +292,22 @@ class AuthService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found",
             )
+
+        provider = user.get("provider", "local")
+
+        # 如果是第三方登入（Google/Facebook），或者是使用與 Firebase 連動的 local 帳號
+        # 由於我們前面把 Firestore ID 設定為 Firebase UID 了，直接用 user_id 去刪除 Firebase Auth 帳號
+        if provider in ["google", "facebook"]:
+            firebase_uid = user.get("googleSub") or user.get("facebookSub") or user_id
+            try:
+                auth.delete_user(firebase_uid)
+            except auth.UserNotFoundError:
+                pass  # 避免 Firebase 那邊如果已經手動刪過會噴 404 錯誤
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to delete user from Firebase Auth",
+                ) from exc
+
+        # 最後刪除 Firestore 的記錄
         self.user_repo.delete(user_id)

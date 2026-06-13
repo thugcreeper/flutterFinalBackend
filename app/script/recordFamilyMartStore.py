@@ -1,16 +1,36 @@
-#python -m app.script.recordFamilyMartStore
-import os,json,time,requests
+# python -m app.script.recordFamilyMartStore
+import os, json, time, requests
 from app.core.firebase import get_firestore_client
 from dotenv import load_dotenv
 
 load_dotenv()
 cities = [
-        "台北市","基隆市","新北市","桃園市",   "新竹市","新竹縣","苗栗縣","台中市",
-        "彰化縣","南投縣","雲林縣","嘉義市","嘉義縣","台南市","高雄市","屏東縣",
-        "宜蘭縣","花蓮縣","台東縣","澎湖縣","連江縣","金門縣"
-    ]
-FAMILYMART_URL="https://api.map.com.tw/net/familyShop.aspx"
+    "台北市",
+    "基隆市",
+    "新北市",
+    "桃園市",
+    "新竹市",
+    "新竹縣",
+    "苗栗縣",
+    "台中市",
+    "彰化縣",
+    "南投縣",
+    "雲林縣",
+    "嘉義市",
+    "嘉義縣",
+    "台南市",
+    "高雄市",
+    "屏東縣",
+    "宜蘭縣",
+    "花蓮縣",
+    "台東縣",
+    "澎湖縣",
+    "連江縣",
+    "金門縣",
+]
+FAMILYMART_URL = "https://api.map.com.tw/net/familyShop.aspx"
 FAMILYMART_API_KEY = os.getenv("FAMILYMART_API_KEY")
+
 
 def get_town_list_familymart(city: str):
     url = (
@@ -22,12 +42,7 @@ def get_town_list_familymart(city: str):
         f"&key={FAMILYMART_API_KEY}"
     )
 
-    res = requests.get(
-        url,
-        headers={
-            "Referer": "https://www.family.com.tw/"
-        }
-    )
+    res = requests.get(url, headers={"Referer": "https://www.family.com.tw/"})
 
     text = res.text.strip()
 
@@ -42,6 +57,7 @@ def get_town_list_familymart(city: str):
 
     return towns
 
+
 def get_store_list_familymart(city: str, area: str):
     url = (
         f"{FAMILYMART_URL}"
@@ -54,12 +70,7 @@ def get_store_list_familymart(city: str, area: str):
         f"&key={FAMILYMART_API_KEY}"
     )
 
-    res = requests.get(
-        url,
-        headers={
-            "Referer": "https://www.family.com.tw/"
-        }
-    )
+    res = requests.get(url, headers={"Referer": "https://www.family.com.tw/"})
 
     text = res.text.strip()
 
@@ -71,6 +82,7 @@ def get_store_list_familymart(city: str, area: str):
     json_text = text.replace("showStoreList(", "", 1).rsplit(")", 1)[0]
 
     return json.loads(json_text)
+
 
 def fetch_city_familymart(city: str):
     print(f"fetching city: {city}")
@@ -101,17 +113,31 @@ def fetch_city_familymart(city: str):
     print("====================")
 
     return all_stores
-#用str.maketrans更優雅 O(N)
-map=str.maketrans({
-    "０": "0", "１": "1", "２": "2", "３": "3", "４": "4",
-    "５": "5", "６": "6", "７": "7", "８": "8", "９": "9",
-})
+
+
+# 用str.maketrans更優雅 O(N)
+map = str.maketrans(
+    {
+        "０": "0",
+        "１": "1",
+        "２": "2",
+        "３": "3",
+        "４": "4",
+        "５": "5",
+        "６": "6",
+        "７": "7",
+        "８": "8",
+        "９": "9",
+    }
+)
+
 
 def normalize_text(text: str) -> str:
     if not text:
         return ""
-    #用maketrans建完表後要呼叫translate來替換 
+    # 用maketrans建完表後要呼叫translate來替換
     return text.translate(map).strip()
+
 
 def refactor_familymart_store_data(data_list):
     stores = []
@@ -121,18 +147,21 @@ def refactor_familymart_store_data(data_list):
         data_list = [data_list]
 
     for item in data_list:
-        stores.append({
-            "id": item["pkey"].strip(),
-            "name": item["NAME"].strip() + "門市",
-            "address": normalize_text(item["addr"].strip()),
-            "telephone": item.get("TEL", "").strip(),
-            "city": item.get("_temp_city", "").strip(),
-            "area": item.get("_temp_area", "").strip(),
-            "latitude": float(item["py"]),
-            "longitude": float(item["px"]) ,
-        })
+        stores.append(
+            {
+                "id": item["pkey"].strip(),
+                "name": item["NAME"].strip() + "門市",
+                "address": normalize_text(item["addr"].strip()),
+                "telephone": item.get("TEL", "").strip(),
+                "city": item.get("_temp_city", "").strip(),
+                "area": item.get("_temp_area", "").strip(),
+                "latitude": float(item["py"]),
+                "longitude": float(item["px"]),
+            }
+        )
 
     return stores
+
 
 def upload_stores_to_firestore(stores):
     stores = refactor_familymart_store_data(stores)
@@ -144,35 +173,45 @@ def upload_stores_to_firestore(stores):
     collection = db.collection("familyMartStore")
 
     total = 0
-    count=0
+    count = 0
     for store in stores:
-        #結構化儲存，方便管理與維護
-        doc_ref = db.collection("familyMartStore").document(store["city"]).collection(store["area"]).document(store["id"])
-        #用batch保有atomicity、提升效率的好處
+        # 結構化儲存，方便管理與維護
+        # 20260613其實這樣不好，不要分層才對，不然後續查詢邏輯會被搞得很複雜
+        """doc_ref = (
+            db.collection("familyMartStore")
+            .document(store["city"])
+            .collection(store["area"])
+            .document(store["id"])
+        )"""
+        doc_ref = collection.document(store["id"])
+        # 用batch保有atomicity、提升效率的好處
         batch.set(doc_ref, store)
         total += 1
-        count+=1
-        if count>=500:
+        count += 1
+        if count >= 500:
             batch.commit()
             print(f"已上傳 {total} 間門市")
             batch = db.batch()
-            count=0
-    if count>0:
+            count = 0
+    if count > 0:
         batch.commit()
     print(f"已上傳 {total} 間門市")
 
+
 def fetch_all_familymartstores():
-    all_store=[]
-    counter=0
+    all_store = []
+    counter = 0
     for city in cities:
-        all_store=fetch_city_familymart(city)
+        all_store = fetch_city_familymart(city)
         upload_stores_to_firestore(all_store)
-        counter+=len(all_store)
-        
+        counter += len(all_store)
+
     print("所有城市的familyMart門市資料已完成上傳,共", counter, "筆")
-    
-    return all_store 
+
+    return all_store
+
+
 if __name__ == "__main__":
-    fetch_all_familymartstores()
-    #familymart_stores=fetch_city_familymart("新竹市")
-    #upload_stores_to_firestore(familymart_stores)
+    familymart_stores = fetch_all_familymartstores()
+    # familymart_stores=fetch_city_familymart("新竹市")
+    upload_stores_to_firestore(familymart_stores)
