@@ -136,7 +136,7 @@ python -m app.script.recordFamilyMartStore
 | :--- | :---: | :--- | :--- |
 | `/auth/register` | `POST` | 本地帳號註冊 | `{ "account": "username", "password": "password", "name": "Nickname" }` |
 | `/auth/login` | `POST` | 本地帳號登入 | `{ "account": "username", "password": "password" }` |
-| `/auth/googlelogin` | `POST` | Google 聯名登入 | `{ "idToken": "firebase_id_token" }` |
+
 
 ### 2. 使用者資訊模組 (`/users`)
 
